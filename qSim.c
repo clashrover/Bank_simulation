@@ -138,10 +138,10 @@ int main(int argc, char* argv[]){
 		e->next = NULL;
 
 		struct Customer* new_c = (struct Customer*) malloc (sizeof(struct Customer));
-		new_c-> arrival_time = arrival_time;
+		new_c-> arrival_time = arrTime;
 		new_c->wait_time = 0 ;
 		new_c->service_time = 0;
-		new_c->total_time = arrival_time;
+		new_c->total_time = arrTime;
 		new_c->next = NULL;
 
 		e->cust = new_c;
@@ -164,54 +164,93 @@ int main(int argc, char* argv[]){
     teller_queue -> push = push_customer;
     teller_queue -> pop = pop_customer;
     
+    int total_no_cust_served = 0;
+    float total_time_req_to_serve_all_cust = 0;
+    int type_of_system = 1;
+    float avg_time_spent_in_bank=0;
+    float max_wait_time = 0;
+    float total_amt_service_time = 0;
+    float total_amt_idle_time = 0;
 
 	while(no_customers>0 && time<simulationTime){
 		struct Event* e = event_queue -> pop(event_queue->head);
-		printf("%f    ", e->time);
+		printf("time : %f    ", e->time);
 		if(e->type==1){
-			printf("%s\n", "in 1");
-			struct Customer* new_c = (struct Customer*) malloc (sizeof(struct Customer));
-			new_c-> arrival_time = e -> time;
-			new_c->wait_time = 0 ;
-    		new_c->service_time = 0;
-    		new_c->total_time = e->time;
+			printf("Event : %s\n\n", "Arrival of New Customer");
+			struct Customer* new_c = e->cust;
     		new_c->next = NULL;
     		teller_queue->push(new_c,teller_queue->head);
+    		time = e->time;
 		}else if(e->type == 2){
-			printf("%s", "in 2  removing customer :");
-			printf("%f\n", e->time);
+			struct Customer* nc = e->cust;
+			time = e->time;
+			printf("%s", "Removal of Customer \n");
+			printf("-----------%s-----------\n", "STATS");
+			printf("Arrived Time : %f sec\n", nc->arrival_time);
+			printf("Wait Time: %f sec\n", nc->wait_time);
+			printf("Service Time : %f sec\n", nc->service_time);
+			printf("Total time in bank : %f sec\n", nc->total_time);
+			printf("-----------%s-----------\n\n", "-----");
+			free(nc);
+			free(e);
 		}else{
+			struct Teller* tell = e->teller;
+			printf("Checking Teller queue for customers\n");
 			if(teller_queue->head->next == NULL){
-				printf("%s\n", "going to 4");
-				struct Event* t = (struct Event*) malloc (sizeof(struct Event));
+				printf("Teller queue is empty\n" );
+				struct Teller* tell = e->teller;
 				float idle_time = 2* 75 * ((1.0*rand())/(1.0*RAND_MAX));
-				t->time = e->time + idle_time ;
-				t->next = NULL;
-				t->type = 4;
-				event_queue->push(t,event_queue->head);
+				printf("Adding Teller event with random idle time   %f\n\n",idle_time);
+				e->time = e->time + idle_time ;
+				e->next = NULL;
+				e->type = 4;
+				tell -> total_idle_time = (tell -> total_idle_time) + idle_time;
+				event_queue->push(e,event_queue->head);
+				time = e->time;
+
+				total_amt_idle_time = total_amt_idle_time + idle_time;
 			}else{
-				printf("%s\n", "rest");
+				printf("%s\n", "Serving customer\n");
 				struct Customer* c1 = teller_queue->pop(teller_queue->head);
     			c1->wait_time = e->time - c1->arrival_time;
     			c1->service_time = 2*avgServiceTime* ((1.0*rand())/(1.0*(RAND_MAX)));;
     			c1->total_time = c1->wait_time + c1->service_time;
     			
+
     			struct Event* cust_event = (struct Event*) malloc (sizeof(struct Event));
     			cust_event->time = e->time + c1->service_time;
 				cust_event->next = NULL;
 				cust_event->type = 2;
+				cust_event->cust = c1;
+				cust_event->teller = NULL;
 				event_queue->push(cust_event,event_queue->head);
 
-				struct Event* tell_event = (struct Event*) malloc (sizeof(struct Event));
-    			tell_event->time = cust_event->time ;
-				tell_event->next = NULL;
-				tell_event->type = 3;
-				event_queue->push(tell_event,event_queue->head);
+    			e->time = cust_event->time ;
+				e->next = NULL;
+				e->type = 3;
+				tell->total_service_time = tell->total_service_time + c1->service_time;
+
+				event_queue->push(e,event_queue->head);
 				no_customers--;
+				time = e->time;
+
+				total_no_cust_served++;
+				avg_time_spent_in_bank = avg_time_spent_in_bank + c1->total_time;
+				if (max_wait_time < c1->wait_time){
+					max_wait_time = c1 -> wait_time;
+				}
+
+				total_amt_service_time = total_amt_service_time + c1->service_time;
 			}
 		}
-		time = e->time;
 	}
+	printf("FINAL STATS\n");
+	printf("total_no_cust_served = %d;\n", total_no_cust_served);
+	// printf("total_time_req_to_serve_all_cust = %f\n", total_time_req_to_serve_all_cust);
+	printf("avg_time_spent_in_bank = %f\n", ( avg_time_spent_in_bank/total_no_cust_served ));
+	printf("max_wait_time = %f\n", max_wait_time);
+	printf("total_amt_service_time = %f\n", total_amt_service_time);
+	printf("total_amt_idle_time = %f\n", total_amt_idle_time);
 }
 
 
